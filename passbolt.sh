@@ -113,7 +113,7 @@ printDebugVar() {
     fi
 }
 
-# Ask for a search it not set on the command line
+# Ask for a search if not set on the command line
 searchPhrase="$1"
 if [ -z "$searchPhrase" ]; then
     read -rp "Search: " searchPhrase
@@ -245,6 +245,7 @@ copy() {
 #   short:  name, username. If URL is set, append (url)
 # Returns:  Formatted string
 splitLine() {
+    local debugVars
     local input
     local resultMode
     local string
@@ -283,7 +284,9 @@ splitLine() {
 # Params:
 # 1: One line from passbolt find
 printEntry() {
+    local debugVars
     local description
+    local descriptionStr
     local decrypted
     local encrypted
     local password
