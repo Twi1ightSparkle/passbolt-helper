@@ -114,7 +114,7 @@ If there is a more elegant way of getting and parsing the data from `passbolt_cl
   **exactly 200 characters** long. Here is one for convenient copy-pasting
   `ZZZZdummyEntryIgnoreThisVeryLongStringqTWSG1TqYTyhmceL51ncBPv873TQCmCVl3SraSr84Xw2a3GFXOiQqgeFw66rtRD35bZ771anUoUtBPWVyldpWHeZwt5M4od4LsS4P85kzIraUDRj3pfQPMjvYVgzkjaRPGZeHoTzVmS1J7lr0TzJcu4CZXXYgC7SNE`
 
-- Optionally change program defaults by setting one or more of of these in your .bashrc/.zshrc/etc file
+- Optionally change program defaults by setting one or more of of these in your `.bashrc`/`.zshrc`/etc file
 
   ```bash
   export PASSBOLT_CLI_HELPER_COPY="true"
@@ -175,8 +175,8 @@ Description:        <hidden>
 
 $ pb --password demo
 1: Demo Entry, twilight (https://example.com)
-2: Entry 1, user1
-3: Entry 2, user2
+2: Demo Entry 2, user2
+3: Demo Entry 3, user3
 Choose entry number: 1
 
 Details for entry   Demo Entry
