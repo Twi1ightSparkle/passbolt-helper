@@ -157,6 +157,10 @@ Settings. Export environment variable with the value \"true\"
 the related option if set.
     - PASSBOLT_CLI_HELPER_COPY:         Automatically copy the username and
                                         password to system clipboard.
+    - PASSBOLT_CLI_HELPER_CLEAR_CLIP:   Automatically clear the password from
+                                        the system clipboard after N seconds.
+                                        Default 10. Set to 0 to disable.
+                                        Only works on Mac for now.
     - PASSBOLT_CLI_HELPER_SHOW_DESC:    Print the description by default.
     - PASSBOLT_CLI_HELPER_SHOW_PW:      Print the password by default.
 
@@ -199,4 +203,5 @@ Description:
 And, this is a description
 
 The username has been copied to your clipboard. Press enter to copy the password
+Waiting 10 seconds to clear clipboard...
 ```
