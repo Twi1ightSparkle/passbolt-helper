@@ -47,6 +47,10 @@ Settings. Export environment variable with the value \"true\"
 the related option if set.
     - PASSBOLT_CLI_HELPER_COPY:         Automatically copy the username and
                                         password to system clipboard.
+    - PASSBOLT_CLI_HELPER_CLEAR_CLIP:   Automatically clear the password from
+                                        the system clipboard after N seconds.
+                                        Default 10. Set to 0 to disable.
+                                        Only works on Mac for now.
     - PASSBOLT_CLI_HELPER_SHOW_DESC:    Print the description by default.
     - PASSBOLT_CLI_HELPER_SHOW_PW:      Print the password by default.
 EOF
@@ -148,10 +152,34 @@ checkOs() {
     esac
 }
 
+# Check if the given value is an integer
+# Params:
+# 1: The value to check
+# Returns 1 if true or 0 if false
+isInteger() {
+    local input
+    input="$1"
+
+    printDebugHeader "function isInteger"
+    printDebugVar "input"
+
+    if [ -n "$input" ] && [ "$input" -eq "$input" ] 2>/dev/null; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
 # Defaults
 COPY_USER_PASS="false"
 SHOW_DESCRIPTION="false"
 SHOW_PASSWORD="false"
+
+[ -z "$PASSBOLT_CLI_HELPER_CLEAR_CLIP" ] && PASSBOLT_CLI_HELPER_CLEAR_CLIP=10
+if [ "$(isInteger "$PASSBOLT_CLI_HELPER_CLEAR_CLIP")" == 0 ] || [ "$PASSBOLT_CLI_HELPER_CLEAR_CLIP" -lt 0 ]; then
+    echo "Error. PASSBOLT_CLI_HELPER_CLEAR_CLIP must be an integer 0 or greater"
+    exit 1
+fi
 
 # Negation. I'm sure there is a more elegant way of doing this, but :shrug:
 if [ "$PASSBOLT_CLI_HELPER_COPY" == "true" ] && [ -z "$OPTION_PB_HELPER_COPY" ]; then COPY_USER_PASS="true"; fi
@@ -196,7 +224,7 @@ checkRequiredPrograms() {
 
     if [ "$COPY_USER_PASS" == "true" ]; then
         case "$operatingSystem" in
-            Darwin)         programs+=(pbcopy);;
+            Darwin)         programs+=(pbcopy pbpaste);;
             LinuxWayland)   programs+=(wl-copy);;
             LinuxX11)       programs+=(xclip);;
         esac
@@ -235,6 +263,27 @@ copy() {
             echo "Unable to copy to system clipboard."
             return 1
     esac
+}
+
+# Read the system clipboard
+# Returns: String from clipboard
+readClipboard() {
+    local clipContent
+
+    printDebugHeader "function readClipboard"
+
+    case $operatingSystem in
+        Darwin)         clipContent="$(pbpaste)";;
+        # TODO add support for Linux
+        # LinuxWayland)   wl-copy "$string";;
+        # LinuxX11)       xclip -i -selection clipboard -t "$string";;
+        *)
+            echo "Unable to read system clipboard."
+            return 1
+    esac
+
+    printDebugVar "clipContent"
+    echo "$clipContent"
 }
 
 # Takes one line returned from passbolt find, parses it, and returns it as a usable string
@@ -278,6 +327,31 @@ splitLine() {
                 echo "Invalid result mode $resultMode. Must be one of all|short"
                 exit 1
     esac
+}
+
+# Clear the clipboard after the configured time, if enabled. Clipboard will only be cleared if the content was not
+# changed by the user during the wait.
+# Params:
+# 1: The password that was copied earlier. 
+clearClipboard() {
+    local compareTo
+    local clipContent
+    compareTo="$1"
+
+    printDebugHeader "function clearClipboard"
+    printDebugVar "PASSBOLT_CLI_HELPER_CLEAR_CLIP"
+    printDebugVar "compareTo"
+
+    if [ "$PASSBOLT_CLI_HELPER_CLEAR_CLIP" -gt 0 ]; then
+        echo "Waiting $PASSBOLT_CLI_HELPER_CLEAR_CLIP seconds to clear the password from system clipboard..."
+        sleep "$PASSBOLT_CLI_HELPER_CLEAR_CLIP"
+        clipContent="$(readClipboard)"
+        printDebugVar "clipContent"
+
+        if [ "$clipContent" == "$compareTo" ]; then
+            copy ""
+        fi
+    fi
 }
 
 # Get the encrypted password + description from Passbolt, then print it and/or copy to clipboard
@@ -340,6 +414,7 @@ Description:        $descriptionStr"
         copy "$username"
         read -rp "The username has been copied to your clipboard. Press enter to copy the password"
         copy "$password"
+        clearClipboard "$password"
     fi
 }
 
