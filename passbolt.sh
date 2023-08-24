@@ -100,7 +100,7 @@ printDebugHeader() {
 
 # Print a variable as a debug line or debug header
 # Params:
-# 1: The variable name to print without $ or the header if $2 = header
+# 1: The variable name to print without $
 printDebugVar() {
     if [ "$OPTION_PB_HELPER_VERBOSE" == "true" ]; then
         local dots
@@ -210,8 +210,8 @@ fi
 # Print debug vars
 printDebugHeader "input variables and settings"
 debugVars=(searchPhrase multiIndex operatingSystem PASSBOLT_CLI_HELPER_COPY OPTION_PB_HELPER_COPY COPY_USER_PASS
-    PASSBOLT_CLI_HELPER_SHOW_DESC OPTION_PB_HELPER_DESC SHOW_DESCRIPTION PASSBOLT_CLI_HELPER_SHOW_PW
-    OPTION_PB_HELPER_PASSWORD SHOW_PASSWORD)
+    PASSBOLT_CLI_HELPER_CLEAR_CLIP PASSBOLT_CLI_HELPER_SHOW_DESC OPTION_PB_HELPER_DESC SHOW_DESCRIPTION
+    PASSBOLT_CLI_HELPER_SHOW_PW OPTION_PB_HELPER_PASSWORD SHOW_PASSWORD)
 for v in "${debugVars[@]}"; do printDebugVar "$v" ; done
 
 # Make sure required programs are installed
@@ -236,6 +236,10 @@ checkRequiredPrograms() {
             missing+="\n- $program "
         fi
     done
+
+    printDebugHeader "function checkRequiredPrograms"
+    printDebugVar "programs[*]"
+    printDebugVar "missing"
 
     if [ -n "$missing" ]; then
         echo -e "Some required programs are missing on this system. Please install:$missing"
@@ -325,7 +329,7 @@ splitLine() {
                 echo "$string";;
         *)
                 echo "Invalid result mode $resultMode. Must be one of all|short"
-                exit 1
+                exit 1;;
     esac
 }
 
@@ -346,6 +350,8 @@ clearClipboard() {
         echo "Waiting $PASSBOLT_CLI_HELPER_CLEAR_CLIP seconds to clear the password from system clipboard..."
         sleep "$PASSBOLT_CLI_HELPER_CLEAR_CLIP"
         clipContent="$(readClipboard)"
+    
+        printDebugHeader "function clearClipboard"
         printDebugVar "clipContent"
 
         if [ "$clipContent" == "$compareTo" ]; then
@@ -429,7 +435,13 @@ getPassword() {
 
     # Log in to passbolt
     if ! passbolt auth check | grep "You are already logged in." &>/dev/null; then
-        passbolt auth login
+        while true; do
+            if passbolt auth login; then
+                break
+            else
+                passbolt auth logout 1>/dev/null
+            fi
+        done
     fi
 
     # Fetch all entries from Passbolt. passbolt-cli does not have any native filter/search function
@@ -448,7 +460,8 @@ getPassword() {
 
     case "$resultCount" in
         0)
-            echo "No entries found for $searchPhrase"
+            echo "No entries found for $searchPhrase. If you believe this is"
+            echo "    wrong, try \"passbolt auth logout\", then rerun the search"
             exit 1;;
         1)
             printEntry "${searchResult[0]}";;
@@ -480,6 +493,7 @@ getPassword() {
             # Process and print the chosen entry
             ((chosenEntry--))
             printEntry "${searchResult[$chosenEntry]}"
+            ;;
     esac
 }
 
