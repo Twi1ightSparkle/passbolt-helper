@@ -386,7 +386,7 @@ printEntry() {
 
     encrypted="$(passbolt get "$uuid")"
     decrypted="$(echo "$encrypted" | gpg --quiet --no-tty 2>/dev/null | sed 's#\n#\\n#g')"
-    password="$(echo "$decrypted" | jq --raw-output .password)"
+    password="$(echo "$decrypted" | jq --raw-output .password 2>/dev/null)"
     baseUrl="$(jq --raw-output .domain.baseUrl "$HOME/.config/passbolt/config.json")"
 
     # If the entry does not have a description, the encrypted data is not JSON. It just encrypts the password as a
