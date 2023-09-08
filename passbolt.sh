@@ -417,9 +417,14 @@ Passbolt link:      $baseUrl/app/passwords/view/$uuid
 Description:        $descriptionStr"
 
     if [ "$COPY_USER_PASS" == "true" ]; then
-        copy "$username"
-        read -rp "The username has been copied to your clipboard. Press enter to copy the password"
-        copy "$password"
+        if [ -n "$username" ]; then
+            copy "$username"
+            read -rp "The username has been copied to your clipboard. Press enter to copy the password"
+            copy "$password"
+        else
+            copy "$password"
+            echo "The password has been copied to your clipboard"
+        fi
         clearClipboard "$password"
     fi
 }
