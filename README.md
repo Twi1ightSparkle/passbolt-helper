@@ -140,10 +140,12 @@ exactly 200 characters in the name, username, and URL field 🤦‍♀️
 Usage: ./passbolt.sh [options] [search] [index]
 
 Options:
-    -c, --copy          Copy username and password to the system clipboard.
+    -c, --copy          Copy username, password, and current 2FA code to the
+                        system clipboard.
     -d, --description   Print the description to the console.
     -h, --help          This help text.
     -p, --password      Print the password to the console.
+        --totp          Print all TOTP details.
         --verbose       Show verbose debug information. Printed to STDERR.
 
 search: Search for something in Passbolt. Optional, script will ask you
@@ -157,12 +159,15 @@ Settings. Export environment variable with the value \"true\"
 the related option if set.
     - PASSBOLT_CLI_HELPER_COPY:         Automatically copy the username and
                                         password to system clipboard.
-    - PASSBOLT_CLI_HELPER_CLEAR_CLIP:   Automatically clear the password from
-                                        the system clipboard after N seconds.
-                                        Default 10. Set to 0 to disable.
+    - PASSBOLT_CLI_HELPER_CLEAR_CLIP:   Automatically clear the password or TOTP
+                                        from the system clipboard after N
+                                        seconds if the clipboard has not since
+                                        been changed by the user. Default 10.
+                                        Set to 0 to disable.
                                         Only works on Mac for now.
     - PASSBOLT_CLI_HELPER_SHOW_DESC:    Print the description by default.
     - PASSBOLT_CLI_HELPER_SHOW_PW:      Print the password by default.
+    - PASSBOLT_CLI_HELPER_SHOW_TOTP:    Print all TOTP details by default.
 
 $ pb notfound
 No entries found for notfound
@@ -172,6 +177,7 @@ $ pb 'demo entry'
 Details for entry   Demo Entry
 Username:           twilight
 Password:           <hidden>
+Next 4 TOTP codes:  161256 377371 829113 359548 - 25 seconds remaining
 URL:                https://example.com
 Last modified:      2023-07-25T14:43:17+00:00
 Passbolt link:      https://passbolt.example.com/app/passwords/view/e6e04cba-9ba2-4965-8425-cce7b7003a0f
@@ -186,16 +192,22 @@ Choose entry number: 1
 Details for entry   Demo Entry
 Username:           twilight
 Password:           ThisIsASecret
+Next 4 TOTP codes:  630969 311544 333600 211237 - 12 seconds remaining
 URL:                https://example.com
 Last modified:      2023-07-25T14:43:17+00:00
 Passbolt link:      https://passbolt.example.com/app/passwords/view/e6e04cba-9ba2-4965-8425-cce7b7003a0f
 Description:        <hidden>
 
-$ pb --password --description --copy demo 1
+$ pb --cdp --totp demo 1
 
 Details for entry   Demo Entry
 Username:           twilight
 Password:           ThisIsASecret
+TOTP Algorithm:     SHA1
+TOTP Digits:        6
+TOTP Period:        30s
+TOTP Secret Key:    THISISATOTPSECRET
+Next 4 TOTP codes:  526245 996915 416248 161764 - 11 seconds remaining
 URL:                https://example.com
 Last modified:      2023-07-25T14:43:17+00:00
 Passbolt link:      https://passbolt.example.com/app/passwords/view/e6e04cba-9ba2-4965-8425-cce7b7003a0f
@@ -203,5 +215,8 @@ Description:
 And, this is a description
 
 The username has been copied to your clipboard. Press enter to copy the password
-Waiting 10 seconds to clear clipboard...
+The password has been copied to your clipboard. Press enter to copy the TOTP
+The TOTP code has been copied to your clipboard. 7 seconds remaining
+Updated TOTP code has been copied to your clipboard (only if less than 10 seconds remaining on the first code)
+Waiting 10 seconds to clear the system clipboard...
 ```
