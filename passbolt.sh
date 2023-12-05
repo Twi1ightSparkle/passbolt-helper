@@ -30,10 +30,12 @@ $dumb
 Usage: ./passbolt.sh [options] [search] [index]
 
 Options:
-    -c, --copy          Copy username and password to the system clipboard.
+    -c, --copy          Copy username, password, and current 2FA code to the
+                        system clipboard.
     -d, --description   Print the description to the console.
     -h, --help          This help text.
     -p, --password      Print the password to the console.
+        --totp          Print all TOTP details.
         --verbose       Show verbose debug information. Printed to STDERR.
 
 search: Search for something in Passbolt. Optional, script will ask you
@@ -47,12 +49,15 @@ Settings. Export environment variable with the value \"true\"
 the related option if set.
     - PASSBOLT_CLI_HELPER_COPY:         Automatically copy the username and
                                         password to system clipboard.
-    - PASSBOLT_CLI_HELPER_CLEAR_CLIP:   Automatically clear the password from
-                                        the system clipboard after N seconds.
-                                        Default 10. Set to 0 to disable.
+    - PASSBOLT_CLI_HELPER_CLEAR_CLIP:   Automatically clear the password or TOTP
+                                        from the system clipboard after N
+                                        seconds if the clipboard has not since
+                                        been changed by the user. Default 10.
+                                        Set to 0 to disable.
                                         Only works on Mac for now.
     - PASSBOLT_CLI_HELPER_SHOW_DESC:    Print the description by default.
     - PASSBOLT_CLI_HELPER_SHOW_PW:      Print the password by default.
+    - PASSBOLT_CLI_HELPER_SHOW_TOTP:    Print all TOTP details by default.
 EOF
 }
 
@@ -64,6 +69,7 @@ while [ "$#" -gt 0 ]; do
         -c | --copy)        export OPTION_PB_HELPER_COPY="true";        shift   ;;
         -d | --description) export OPTION_PB_HELPER_DESC="true";        shift   ;;
         -p | --password)    export OPTION_PB_HELPER_PASSWORD="true";    shift   ;;
+             --totp)        export OPTION_PB_HELPER_SHOW_TOTP="true";   shift   ;;
              --verbose)     export OPTION_PB_HELPER_VERBOSE="true";     shift   ;;
         # :cry:, but don't want any libraries or dependencies for this
         -cd)  export OPTION_PB_HELPER_COPY="true"; export OPTION_PB_HELPER_DESC="true";                                          shift ;;
@@ -182,21 +188,25 @@ if [ "$(isInteger "$PASSBOLT_CLI_HELPER_CLEAR_CLIP")" == 0 ] || [ "$PASSBOLT_CLI
 fi
 
 # Negation. I'm sure there is a more elegant way of doing this, but :shrug:
-if [ "$PASSBOLT_CLI_HELPER_COPY" == "true" ] && [ -z "$OPTION_PB_HELPER_COPY" ]; then COPY_USER_PASS="true"; fi
-if [ "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ] && [ -z "$OPTION_PB_HELPER_DESC" ]; then SHOW_DESCRIPTION="true"; fi
-if [ "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ] && [ -z "$OPTION_PB_HELPER_PASSWORD" ]; then SHOW_PASSWORD="true"; fi
+if [ "$PASSBOLT_CLI_HELPER_COPY" == "true" ]        && [ -z "$OPTION_PB_HELPER_COPY" ];             then COPY_USER_PASS="true"; fi
+if [ "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ]   && [ -z "$OPTION_PB_HELPER_DESC" ];             then SHOW_DESCRIPTION="true"; fi
+if [ "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ]     && [ -z "$OPTION_PB_HELPER_PASSWORD" ];         then SHOW_PASSWORD="true"; fi
+if [ "$PASSBOLT_CLI_HELPER_SHOW_TOTP" == "true" ]   && [ -z "$OPTION_PB_HELPER_SHOW_TOTP" ];        then SHOW_USER_TOTP="true"; fi
 
-if [ "$PASSBOLT_CLI_HELPER_COPY" == "true" ] && [ "$OPTION_PB_HELPER_COPY" == "true" ]; then COPY_USER_PASS="false"; fi
-if [ "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ] && [ "$OPTION_PB_HELPER_DESC" == "true" ]; then SHOW_DESCRIPTION="false"; fi
-if [ "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ] && [ "$OPTION_PB_HELPER_PASSWORD" == "true" ]; then SHOW_PASSWORD="false"; fi
+if [ "$PASSBOLT_CLI_HELPER_COPY" == "true" ]        && [ "$OPTION_PB_HELPER_COPY" == "true" ];      then COPY_USER_PASS="false"; fi
+if [ "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ]   && [ "$OPTION_PB_HELPER_DESC" == "true" ];      then SHOW_DESCRIPTION="false"; fi
+if [ "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ]     && [ "$OPTION_PB_HELPER_PASSWORD" == "true" ];  then SHOW_PASSWORD="false"; fi
+if [ "$PASSBOLT_CLI_HELPER_SHOW_TOTP" == "true" ]   && [ "$OPTION_PB_HELPER_SHOW_TOTP" == "true" ]; then SHOW_USER_TOTP="false"; fi
 
-if [ ! "$PASSBOLT_CLI_HELPER_COPY" == "true" ] && [ -z "$OPTION_PB_HELPER_COPY" ]; then COPY_USER_PASS="false"; fi
-if [ ! "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ] && [ -z "$OPTION_PB_HELPER_DESC" ]; then SHOW_DESCRIPTION="false"; fi
-if [ ! "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ] && [ -z "$OPTION_PB_HELPER_PASSWORD" ]; then SHOW_PASSWORD="false"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_COPY" == "true" ]      && [ -z "$OPTION_PB_HELPER_COPY" ];             then COPY_USER_PASS="false"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ] && [ -z "$OPTION_PB_HELPER_DESC" ];             then SHOW_DESCRIPTION="false"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ]   && [ -z "$OPTION_PB_HELPER_PASSWORD" ];         then SHOW_PASSWORD="false"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_SHOW_TOTP" == "true" ] && [ -z "$OPTION_PB_HELPER_SHOW_TOTP" ];        then SHOW_USER_TOTP="false"; fi
 
-if [ ! "$PASSBOLT_CLI_HELPER_COPY" == "true" ] && [ "$OPTION_PB_HELPER_COPY" == "true" ]; then COPY_USER_PASS="true"; fi
-if [ ! "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ] && [ "$OPTION_PB_HELPER_DESC" == "true" ]; then SHOW_DESCRIPTION="true"; fi
-if [ ! "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ] && [ "$OPTION_PB_HELPER_PASSWORD" == "true" ]; then SHOW_PASSWORD="true"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_COPY" == "true" ]      && [ "$OPTION_PB_HELPER_COPY" == "true" ];      then COPY_USER_PASS="true"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_SHOW_DESC" == "true" ] && [ "$OPTION_PB_HELPER_DESC" == "true" ];      then SHOW_DESCRIPTION="true"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_SHOW_PW" == "true" ]   && [ "$OPTION_PB_HELPER_PASSWORD" == "true" ];  then SHOW_PASSWORD="true"; fi
+if [ ! "$PASSBOLT_CLI_HELPER_SHOW_TOTP" == "true" ] && [ "$OPTION_PB_HELPER_SHOW_TOTP" == "true" ]; then SHOW_USER_TOTP="true"; fi
 
 # Check if able to determine OS
 if [ "$COPY_USER_PASS" == "true" ]; then
@@ -209,9 +219,10 @@ fi
 
 # Print debug vars
 printDebugHeader "input variables and settings"
-debugVars=(searchPhrase multiIndex operatingSystem PASSBOLT_CLI_HELPER_COPY OPTION_PB_HELPER_COPY COPY_USER_PASS
-    PASSBOLT_CLI_HELPER_CLEAR_CLIP PASSBOLT_CLI_HELPER_SHOW_DESC OPTION_PB_HELPER_DESC SHOW_DESCRIPTION
-    PASSBOLT_CLI_HELPER_SHOW_PW OPTION_PB_HELPER_PASSWORD SHOW_PASSWORD)
+debugVars=(searchPhrase multiIndex operatingSystem COPY_USER_PASS SHOW_USER_TOTP OPTION_PB_HELPER_COPY
+    OPTION_PB_HELPER_DESC OPTION_PB_HELPER_PASSWORD PASSBOLT_CLI_HELPER_SHOW_TOTP PASSBOLT_CLI_HELPER_CLEAR_CLIP
+    PASSBOLT_CLI_HELPER_COPY PASSBOLT_CLI_HELPER_SHOW_DESC PASSBOLT_CLI_HELPER_SHOW_PW PASSBOLT_CLI_HELPER_SHOW_TOTP
+    SHOW_DESCRIPTION SHOW_PASSWORD)
 for v in "${debugVars[@]}"; do printDebugVar "$v" ; done
 
 # Make sure required programs are installed
@@ -220,7 +231,7 @@ checkRequiredPrograms() {
     local programs
     local missing
 
-    programs=(bash echo gpg grep jq passbolt read sed xargs)
+    programs=(bash echo gpg grep jq oathtool passbolt read sed xargs)
 
     if [ "$COPY_USER_PASS" == "true" ]; then
         case "$operatingSystem" in
@@ -248,6 +259,22 @@ checkRequiredPrograms() {
 }
 
 checkRequiredPrograms
+
+# Make a word plural by appending s if a number other than 1 is provided
+# Params:
+# 1: A string in singular
+# 2: How many?
+# Returns: The work in singular or plural
+plural() {
+    local string
+    local count
+
+    string="$1"
+    count="$2"
+
+    [ "$count" != "1" ] && string+="s"
+    echo "$string"
+}
 
 # Copy a string to the system clipboard
 # Params:
@@ -347,7 +374,7 @@ clearClipboard() {
     printDebugVar "compareTo"
 
     if [ "$PASSBOLT_CLI_HELPER_CLEAR_CLIP" -gt 0 ]; then
-        echo "Waiting $PASSBOLT_CLI_HELPER_CLEAR_CLIP seconds to clear the password from system clipboard..."
+        echo "Waiting $PASSBOLT_CLI_HELPER_CLEAR_CLIP seconds to clear the system clipboard..."
         sleep "$PASSBOLT_CLI_HELPER_CLEAR_CLIP"
         clipContent="$(readClipboard)"
     
@@ -360,33 +387,105 @@ clearClipboard() {
     fi
 }
 
+# Get the number of seconds remaining for 30-second TOTP
+# Returns: Seconds remaining
+totpSecondsRemaining() {
+    local remaining
+    local seconds
+
+    seconds="$(date "+%S")"
+    if [ "$seconds" -lt 30 ]; then
+        remaining="$((30 - seconds))"
+    else
+        remaining="$((60 - seconds))"
+    fi
+
+    printDebugHeader "function totpSecondsRemaining"
+    printDebugVar "remaining"
+    printDebugVar "seconds"
+
+    echo "$remaining"
+}
+
+# Copy TOTP code to the system clipboard. If less than 10 seconds remaining on the code, copy the next code when it's
+# time. Clears system the clipboard at the end
+# Params:
+# 1: Array of TOTP codes
+copyTotp() {
+    local remaining
+    local totpCodesArr
+    local totpIndex
+
+    totpCodesArr=("$@")
+
+    totpIndex=0
+    copy "${totpCodesArr[totpIndex]}"
+    remaining="$(totpSecondsRemaining)"
+    echo "The TOTP code has been copied to your clipboard. $remaining $(plural "second" "$remaining") remaining"
+
+    printDebugHeader "function copyTotp"
+    printDebugVar "remaining"
+    printDebugVar "totpCodesArr[*]"
+    printDebugVar "totpIndex"
+
+    if [ "$remaining" -lt 10 ]; then
+        ((totpIndex++))
+        ((varemainingr++))
+        printDebugVar "totpIndex"
+        printDebugVar "remaining"
+        sleep "$remaining"
+        copy "${totpCodesArr[totpIndex]}"
+        echo "Updated TOTP code has been copied to your clipboard"
+    fi
+    clearClipboard "${totpCodesArr[totpIndex]}"
+}
+
 # Get the encrypted password + description from Passbolt, then print it and/or copy to clipboard
 # Params:
 # 1: One line from passbolt find
 printEntry() {
+    local baseUrl
     local debugVars
+    local decrypted
     local description
     local descriptionStr
-    local decrypted
     local encrypted
+    local entryName
+    local modified
     local password
     local passwordStr
+    local remaining
+    local seconds
     local split
-    local baseUrl
-    local entryName
-    local username
+    local printString
+    local totpAlgorithm
+    local totpCodes
+    local totpCodesArr
+    local totpDetails
+    local totpDigits
+    local totpLine
+    local totpPeriod
+    local totpSecretKey
     local uri
-    local modified
+    local username
     local uuid
 
     split="$(splitLine "$1" "all")"
 
+    # Get the line as individual variables
+    SAVEIFS="$IFS"
     IFS=';' read -r entryName username uri modified uuid <<< "$split"
-    IFS=$' \t\n'
+    IFS="$SAVEIFS"
 
+    # Extract individual pieces of information
     encrypted="$(passbolt get "$uuid")"
     decrypted="$(echo "$encrypted" | gpg --quiet --no-tty 2>/dev/null | sed 's#\n#\\n#g')"
     password="$(echo "$decrypted" | jq --raw-output .password 2>/dev/null)"
+    totpAlgorithm="$(echo "$decrypted" | jq --raw-output .totp.algorithm 2>/dev/null)"
+    totpDigits="$(echo "$decrypted" | jq --raw-output .totp.digits 2>/dev/null)"
+    totpPeriod="$(echo "$decrypted" | jq --raw-output .totp.period 2>/dev/null)"
+    totpPeriod+="s"
+    totpSecretKey="$(echo "$decrypted" | jq --raw-output .totp.secret_key 2>/dev/null)"
     baseUrl="$(jq --raw-output .domain.baseUrl "$HOME/.config/passbolt/config.json")"
 
     # If the entry does not have a description, the encrypted data is not JSON. It just encrypts the password as a
@@ -398,19 +497,54 @@ printEntry() {
         description="$(echo "$decrypted" | jq --raw-output .description)"
     fi
 
+    totpLine=""
+    if [ "$totpSecretKey" != "null" ]; then
+        remaining="$(totpSecondsRemaining)"
+        totpCodes="$(
+            oathtool \
+                --base32 \
+                --digits="$totpDigits" \
+                --time-step-size="$totpPeriod" \
+                --totp="$totpAlgorithm" \
+                --window="3" \
+                "$totpSecretKey"
+        )"
+
+        # Convert the 4 returned codes to an array
+        SAVEIFS="$IFS"
+        # shellcheck disable=SC2206
+        IFS=$'\n' totpCodesArr=($totpCodes)
+        IFS="$SAVEIFS"
+
+        totpLine="\nNext 4 TOTP codes:  ${totpCodesArr[*]} - $remaining $(plural "second" "$remaining") remaining"
+
+        if [ "$SHOW_USER_TOTP" == "true" ]; then
+            totpDetails="
+TOTP Algorithm:     $totpAlgorithm
+TOTP Digits:        $totpDigits
+TOTP Period:        $totpPeriod
+TOTP Secret Key:    $totpSecretKey"
+        fi
+    fi
+
     passwordStr="<hidden>"
     descriptionStr="<hidden>"
     [ "$SHOW_PASSWORD" == "true" ] && passwordStr="$password"
     [ "$SHOW_DESCRIPTION" == "true" ] && descriptionStr="\n$description"
 
     printDebugHeader "function printEntry"
-    debugVars=(description decrypted encrypted password baseUrl passwordStr split entryName username uri modified uuid)
+    debugVars=(baseUrl decrypted description descriptionStr encrypted entryName modified password passwordStr
+        remaining seconds split totpAlgorithm totpCodes totpCodesArr[*] totpDetails totpDigits totpIndex totpLine
+        totpPeriod totpSecretKey uri username uuid)
     for v in "${debugVars[@]}"; do printDebugVar "$v"; done
 
+    # $totpDetails and $totpLine are set to an enpty strings by default, and \n<content> if they are used. So they will
+    # be on their own lines if used or not dispayed if not used. This approach removes the need for a bunch of logic
+    # building the output
     echo -e "
 Details for entry   $entryName
 Username:           $username
-Password:           $passwordStr
+Password:           $passwordStr$totpDetails$totpLine
 URL:                $uri
 Last modified:      $modified
 Passbolt link:      $baseUrl/app/passwords/view/$uuid
@@ -420,12 +554,19 @@ Description:        $descriptionStr"
         if [ -n "$username" ]; then
             copy "$username"
             read -rp "The username has been copied to your clipboard. Press enter to copy the password"
-            copy "$password"
-        else
-            copy "$password"
-            echo "The password has been copied to your clipboard"
         fi
-        clearClipboard "$password"
+
+        copy "$password"
+        printString="The password has been copied to your clipboard"
+
+        if [ -n "$totpLine" ]; then
+            printString+=". Press enter to copy the TOTP"
+            read -rp "$printString"
+            copyTotp "${totpCodesArr[@]}"
+        else
+            echo "$printString"
+            clearClipboard "$password"
+        fi
     fi
 }
 
@@ -451,10 +592,14 @@ getPassword() {
 
     # Fetch all entries from Passbolt. passbolt-cli does not have any native filter/search function
     allEntries="$(passbolt find)"
-    # Convert the list to an array
+
+    # Do the search and convert the result list to an array
+    SAVEIFS="$IFS"
     # shellcheck disable=SC2207
     IFS=$'\n' searchResult=($(echo "$allEntries" | grep -i "$searchPhrase"))
-    IFS=$' \t\n'
+    IFS="$SAVEIFS"
+
+    # Count results
     resultCount=${#searchResult[@]}
 
     # Check that the user has the 200 string entry requirement
