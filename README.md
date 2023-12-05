@@ -31,6 +31,7 @@ If there is a more elegant way of getting and parsing the data from `passbolt_cl
 ## Setup
 
 - Install [passbolt_cli](https://github.com/passbolt/passbolt_cli)
+- Install [OATH Toolkit](https://www.nongnu.org/oath-toolkit/)
 - Import the required keys into gpg
 
   ```bash
